@@ -1,45 +1,66 @@
-# Artifact-chain template
+# Small chat client (Week 2 lab)
 
-Starting point for major project submissions in CPSC 415 (AI Integration, Trinity College). Click **Use this template** on GitHub to create your own repository from it. Do not fork.
+A command-line program that sends one question to a model and prints the answer and the token usage. Python 3, standard library only — no packages.
 
-The course follows Anthropic's [AI-Native SDLC Playbook](https://claude.com/blog/the-ai-native-sdlc-playbook): every stage of the work leaves a short, version-controlled artifact. The agent writes most of the code. You decide what gets built, steer, verify, and explain every choice. These files are how you prove you understood what the agent built.
+## How to run it
 
-## Early labs
+Set the three environment variables (PowerShell shown; on bash use `export`):
 
-Week 1 uses the minimal repository described in the course handout. Later introductory labs complete only the stages assigned so far. This template describes the full chain for team projects and the final portfolio; it does not require unintroduced artifacts in Week 1. Project languages are chosen and justified, with one separate guided exercise in an unfamiliar language.
-
-## The chain
-
-| Stage | File | Written by | Approved by |
-|---|---|---|---|
-| Plan | `intent/<name>.md` | The agent, after interviewing you | You |
-| Design | `spec.md` | The agent, from the approved intent | You, against the intent |
-| Build | `plan.md`, then code on a branch | The agent | You, before any code |
-| Test | tests, lint, CI | The agent | You confirm the loop actually ran |
-| Deploy | a pull request reviewed against `REVIEW.md` | A separate reviewing agent | You merge |
-| Maintain | a new `intent/<name>.md` | Triggered by a bug, a ticket, or a model change | You triage |
-
-`CLAUDE.md` and `REVIEW.md` travel with the repo and are graded artifacts.
-
-## Rules that are graded
-
-- Intent and spec exist before code. Plan is approved before implementation. The commit history shows it.
-- One pull request per feature, from a branch, reviewed before merge. Do not commit to `main` directly after the first commit.
-- `spec.md` states the **language** and the **model** for each component and why.
-- `ANNOTATION.md` answers the four questions for the finished project.
-- No secrets in the repo. `.claude/settings.local.json` and `.env` are ignored; the `.example` file shows the shape.
-
-## Submitting
-
-Tag the commit you are submitting and put the repository URL plus the tag on Moodle:
-
-```
-git tag tp1-submitted
-git push origin tp1-submitted
+```powershell
+$env:CHAT_BASE_URL  = "https://openrouter.ai/api/v1"
+$env:CHAT_MODEL     = "minimax/minimax-m3"
+$env:OPENROUTER_API_KEY = "<your key>"
 ```
 
-Tags the course uses: `intent-spec`, `tp1-submitted`, `tp2-submitted`, `portfolio-final`.
+Then:
 
-## Running the agent
+```bash
+python chat.py "In one sentence, what is a context window?"
+```
 
-Copy `.claude/settings.local.json.example` to `.claude/settings.local.json` and fill in your OpenRouter key and model slugs, or use the `orclaude` launcher from the [course repository](https://github.com/kousen/ai-integration-course/tree/main/scripts).
+The program prints the model's one-line answer and then a final usage line of the form:
+
+```
+minimax/minimax-m3 in=185 out=122
+```
+
+## Intent corrections
+
+Two things the agent had wrong or made up in its first draft of `intent/chat-client.md`:
+
+1. **Not in scope** — the agent invented a long list (multi-turn, history, TUI, packaging, tests, …). Replaced with the assignment's short list: streaming, chat history, a web page, retries, more than one provider at a time.
+2. **Success looks like** — the agent invented three specific behaviors (one-line answer, missing-env-var error handling, no secrets on disk). Replaced with the assignment's three observable outcomes: answers via OpenRouter, changing one environment variable points it at a different model, token counts match the provider's usage record.
+
+## The request body in `chat.py`
+
+The request body is built in `main()`:
+
+```python
+body = json.dumps({
+    "model": model,
+    "max_tokens": 600,
+    "messages": [
+        {"role": "system", "content": "Answer in pirate slang."},
+        {"role": "user", "content": question},
+    ],
+}).encode("utf-8")
+```
+
+- `model` comes from `CHAT_MODEL`, so swapping the env var swaps the model with no code change.
+- `max_tokens` caps how much the model can spend on the visible answer.
+- `messages` carries the system prompt (sets the persona) and the user's question from `sys.argv[1]`.
+
+## Two-model comparison
+
+Same question — `"In one sentence, what is a context window?"` — under the pirate-slang system prompt.
+
+| Model | in | out | Cost (Activity) | Behavior |
+|---|---|---|---|---|
+| `minimax/minimax-m3` | 185 | 122 | $0.000281 | Longer persona-driven answer with phrases like "Arrr, matey" and "trusty AI parrot." |
+| `xiaomi/mimo-v2.5`   |  26 |  89 | $0.0000343 | Shorter answer, also pirate-themed but with different imagery ("treasure chest," "walk the plank"). |
+
+Both models followed the system prompt's persona; the difference was length and which pirate metaphors they reached for. `xiaomi/mimo-v2.5` reported far fewer prompt tokens (26 vs 185) and cost roughly 8x less.
+
+## Local model
+
+Skipped — no local model was running on this machine during the lab, so the `Local model (optional)` row in `CHECKS.md` is marked N/A.

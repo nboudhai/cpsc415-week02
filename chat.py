@@ -25,7 +25,11 @@ def main() -> int:
     url = base_url.rstrip("/") + "/chat/completions"
     body = json.dumps({
         "model": model,
-        "messages": [{"role": "user", "content": question}],
+        "max_tokens": 600,
+        "messages": [
+            {"role": "system", "content": "Answer in pirate slang."},
+            {"role": "user", "content": question},
+        ],
     }).encode("utf-8")
     req = urllib.request.Request(
         url,
